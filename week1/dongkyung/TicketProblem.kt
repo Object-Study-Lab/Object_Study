@@ -42,8 +42,15 @@ class Bag(
 class Audience(
     private val bag: Bag
 ) {
-    fun getBag(): Bag {
-        return bag
+    fun buy(ticket: Ticket): Long {
+        if (bag.hasInvitation()) {
+            bag.setTicket(ticket)
+            return 0L
+        } else {
+            bag.setTicket(ticket)
+            bag.minusAmount(ticket.getFee())
+            return ticket.getFee()
+        }
     }
 }
 
@@ -68,15 +75,7 @@ class TicketSeller(
     private val ticketOffice: TicketOffice
 ) {
     fun sellTo(audience: Audience) {
-        if (audience.getBag().hasInvitation()) {
-            val ticket = ticketOffice.getTicket()
-            audience.getBag().setTicket(ticket)
-        } else {
-            val ticket = ticketOffice.getTicket()
-            audience.getBag().minusAmount(ticket.getFee())
-            ticketOffice.plusAmount(ticket.getFee())
-            audience.getBag().setTicket(ticket)
-        }
+        ticketOffice.plusAmount(audience.buy(ticketOffice.getTicket()))
     }
 }
 
