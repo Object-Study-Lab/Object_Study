@@ -18,24 +18,28 @@ class Bag(
     private var ticket: Ticket?,
     private var invitation: Invitation? = null,
 ) {
-    fun hasInvitation(): Boolean {
+
+    fun hold(ticket: Ticket): Long {
+        if (hasInvitation()) {
+            setTicket(ticket)
+            return 0L
+        } else {
+            setTicket(ticket)
+            minusAmount(ticket.getFee())
+            return ticket.getFee()
+        }
+    }
+
+    private fun hasInvitation(): Boolean {
         return invitation != null
     }
 
-    fun hasTicket(): Boolean {
-        return ticket != null
-    }
-
-    fun setTicket(ticket: Ticket) {
+    private fun setTicket(ticket: Ticket) {
         this.ticket = ticket
     }
 
-    fun minusAmount(amount: Long) {
+    private fun minusAmount(amount: Long) {
         this.amount -= amount
-    }
-
-    fun plusAmount(amount: Long) {
-        this.amount += amount
     }
 }
 
@@ -43,14 +47,7 @@ class Audience(
     private val bag: Bag
 ) {
     fun buy(ticket: Ticket): Long {
-        if (bag.hasInvitation()) {
-            bag.setTicket(ticket)
-            return 0L
-        } else {
-            bag.setTicket(ticket)
-            bag.minusAmount(ticket.getFee())
-            return ticket.getFee()
-        }
+        return bag.hold(ticket)
     }
 }
 
