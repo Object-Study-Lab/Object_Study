@@ -1,4 +1,3 @@
-
 class Invitation(
     private val time: Long
 )
@@ -68,8 +67,16 @@ class TicketOffice(
 class TicketSeller(
     private val ticketOffice: TicketOffice
 ) {
-    fun getTicketOffice(): TicketOffice {
-        return ticketOffice
+    fun sellTo(audience: Audience) {
+        if (audience.getBag().hasInvitation()) {
+            val ticket = ticketOffice.getTicket()
+            audience.getBag().setTicket(ticket)
+        } else {
+            val ticket = ticketOffice.getTicket()
+            audience.getBag().minusAmount(ticket.getFee())
+            ticketOffice.plusAmount(ticket.getFee())
+            audience.getBag().setTicket(ticket)
+        }
     }
 }
 
@@ -77,14 +84,6 @@ class Theater(
     private val ticketSeller: TicketSeller
 ) {
     fun enter(audience: Audience) {
-        if (audience.getBag().hasInvitation()) {
-            val ticket = ticketSeller.getTicketOffice().getTicket()
-            audience.getBag().setTicket(ticket)
-        } else {
-            val ticket = ticketSeller.getTicketOffice().getTicket()
-            audience.getBag().minusAmount(ticket.getFee())
-            ticketSeller.getTicketOffice().plusAmount(ticket.getFee())
-            audience.getBag().setTicket(ticket)
-        }
+        ticketSeller.sellTo(audience)
     }
 }
