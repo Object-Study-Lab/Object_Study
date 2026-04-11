@@ -1,25 +1,48 @@
 class Movie(
-    val title: String,
-    val runningTime: Duration,
-    val fee: Money,
-    initialConditions: List<DiscountCondition>,
+    private val title: String,
+    private val runningTime: Duration,
+    private val fee: Money,
+    private val discountConditions: List<DiscountCondition>,
 
     val movieType: MovieType,
-    val discountAmount: Money,
-    val discountPercent: Double
+    private val discountAmount: Money,
+    private val discountPercent: Double
 ) {
-    private val _discountConditions: MutableList<DiscountCondition> = initialConditions.toMutableList()
 
-    val discountConditions: List<DiscountCondition>
-        get() = _discountConditions
-
-
-    fun addDiscountCondition(condition: DiscountCondition) {
-        _discountConditions.add(condition)
+    fun isDiscountable(whenScreened: LocalDateTime, sequence: Int): Boolean {
+        for (condition in discountConditions) {
+            if (condition.type == DiscountConditionType.PERIOD) {
+                if (condition.isDiscountable(whenScreened.dayOfWeek, whenScreened.toLocalTime())) {
+                    return true
+                }
+            } else {
+                if (condition.isDiscountable(sequence)) {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
-    fun removeDiscountCondition(condition: DiscountCondition) {
-        _discountConditions.remove(condition)
+    fun calculateAmountDiscountFee(): Money {
+        if (movieType != MovieType.AMOUNT_DISCOUNT) {
+            throw IllegalArgumentException()
+        }
+        return fee.minus(discountAmount)
+    }
+
+    fun calculatePercentDiscountFee(): Money {
+        if (movieType != MovieType.PERCENT_DISCOUNT) {
+            throw IllegalArgumentException()
+        }
+        return fee.minus(fee.times(discountPercent))
+    }
+
+    fun calculateNoneDiscountFee(): Money {
+        if (movieType != MovieType.NONE_DISCOUNT) {
+            throw IllegalArgumentException()
+        }
+        return fee
     }
 }
 
@@ -29,13 +52,39 @@ class DiscountCondition(
     val dayOfWeek: DayOfWeek,
     val startTime: LocalTime,
     val endTime: LocalTime
-)
+) {
+    fun isDiscountable(dayOfWeek: DayOfWeek, time: LocalTime): Boolean {
+        if (type != DiscountConditionType.PERIOD) {
+            throw IllegalArgumentException()
+        }
+        return this.dayOfWeek == dayOfWeek && this.startTime <= time && this.endTime >= time
+    }
+
+    fun isDiscountable(sequence: Int): Boolean {
+        if (type != DiscountConditionType.SEQUENCE) {
+            throw IllegalArgumentException()
+        }
+        return this.sequence == sequence
+    }
+}
 
 class Screening(
     val movie: Movie,
     val sequence: Int,
     val whenScreened: LocalDateTime
-)
+) {
+    fun calculateFee(audienceCount: Int): Money {
+        return when (movie.movieType) {
+            AMOUNT_DISCOUNT -> {
+                movie.calculateAmountDiscountFee().times(audienceCount)
+            }
+            PERCENT_DISCOUNT -> {
+                movie.calculatePercentDiscountFee().times(audienceCount)
+            }
+            NONE_DISCOUNT -> movie.calculateNoneDiscountFee().times(audienceCount)
+        }
+    }
+}
 
 class Customer(
     private val name: String,
@@ -102,30 +151,7 @@ enum class MovieType {
 class ReservationAgency {
 
     fun reserve(screening: Screening, customer: Customer, audienceCount: Int): Reservation {
-        val movie = screening.movie
-
-        var discountable = false
-
-        for (condition in movie.discountConditions) {
-            if (condition.type == DiscountConditionType.PERIOD) {
-                // 비교 로직
-            } else {
-                discountable = condition.sequence == screening.sequence
-            }
-
-            if (discountable) break
-        }
-        if (discountable) {
-            val discountAmount = when (movie.movieType) {
-                AMOUNT_DISCOUNT -> movie.discountAmount
-                PERCENT_DISCOUNT -> movie.fee.times(movie.discountPercent)
-                NONE_DISCOUNT -> Money.ZERO
-            }
-            val fee = movie.fee.minus(discountAmount)
-            return Reservation(customer, screening, fee, audienceCount)
-        } else {
-            val fee = movie.fee
-            return Reservation(customer, screening, fee, audienceCount)
-        }
+        val fee = screening.calculateFee(audienceCount)
+        return Reservation(customer, screening, fee, audienceCount)
     }
 }
