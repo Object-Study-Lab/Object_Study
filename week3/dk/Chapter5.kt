@@ -27,8 +27,7 @@ class Screening(
 }
 
 class Movie(
-    private val periodConditions: List<PeriodCondition>,
-    private val sequenceConditions: List<SequenceCondition>,
+    private val discountConditions: List<DiscountCondition>,
     private val title: String,
     private val runningTime: Duration,
     private val fee: Money,
@@ -38,19 +37,14 @@ class Movie(
     private val discountPercent: Double
 ) {
     fun calculateMovieFee(screening: Screening): Money {
-
+        if (isDiscountable(screening)) {
+            return fee.minus(calculateDiscountAmount())
+        }
+        return fee
     }
 
     private fun isDiscountable(screening: Screening): Boolean {
-        return checkPeriodConditions(screening) || checkSequenceConditions(screening)
-    }
-
-    private fun checkPeriodConditions(screening: Screening): Boolean {
-        return periodConditions.any { condition -> condition.isSatisfiedBy(screening) }
-    }
-
-    private fun checkSequenceConditions(screening: Screening): Boolean {
-        return sequenceConditions.any { condition -> condition.isSatisfiedBy(screening) }
+        return discountConditions.any { condition -> condition.isSatisfiedBy(screening) }
     }
 
     private fun calculateDiscountAmount(): Money {
@@ -85,12 +79,16 @@ enum class DiscountConditionType {
     PERIOD
 }
 
+interface DiscountCondition {
+    fun isSatisfiedBy(screening: Screening): Boolean
+}
+
 class PeriodCondition(
     private val dayOfWeek: DayOfWeek,
     private val startTime: LocalTime,
     private val endTime: LocalTime,
-) {
-    fun isSatisfiedBy(screening: Screening): Boolean {
+): DiscountCondition {
+    override fun isSatisfiedBy(screening: Screening): Boolean {
         return dayOfWeek == screening.whenScreened.dayOfWeek &&
                 startTime <= screening.whenScreened.toLocalTime() &&
                 endTime.isAfter(screening.whenScreened.toLocalTime())
@@ -99,8 +97,8 @@ class PeriodCondition(
 
 class SequenceCondition(
     private val sequence: Int
-) {
-    fun isSatisfiedBy(screening: Screening): Boolean {
+): DiscountCondition {
+    override fun isSatisfiedBy(screening: Screening): Boolean {
         return sequence == screening.sequence
     }
 }
@@ -117,8 +115,12 @@ value class Money(
         return Money(this.amount * amount)
     }
 
+    operator fun minus(money: Money): Money {
+        return Money(this.amount - money.amount)
+    }
+
     companion object {
-        val ZERO = Money(0)
+        val ZERO = Money(0.0)
     }
 }
 
