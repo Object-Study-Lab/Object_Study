@@ -27,10 +27,11 @@ class Screening(
 }
 
 class Movie(
+    private val periodConditions: List<PeriodCondition>,
+    private val sequenceConditions: List<SequenceCondition>,
     private val title: String,
     private val runningTime: Duration,
     private val fee: Money,
-    private val discountConditions: List<DiscountCondition>,
 
     private val movieType: MovieType,
     private val discountAmount: Money,
@@ -41,7 +42,15 @@ class Movie(
     }
 
     private fun isDiscountable(screening: Screening): Boolean {
-        return discountConditions.any { condition -> condition.isSatisfiedBy(screening) }
+        return checkPeriodConditions(screening) || checkSequenceConditions(screening)
+    }
+
+    private fun checkPeriodConditions(screening: Screening): Boolean {
+        return periodConditions.any { condition -> condition.isSatisfiedBy(screening) }
+    }
+
+    private fun checkSequenceConditions(screening: Screening): Boolean {
+        return sequenceConditions.any { condition -> condition.isSatisfiedBy(screening) }
     }
 
     private fun calculateDiscountAmount(): Money {
@@ -76,29 +85,22 @@ enum class DiscountConditionType {
     PERIOD
 }
 
-class DiscountCondition(
-    private val type: DiscountConditionType,
-    private val sequence: Int,
+class PeriodCondition(
     private val dayOfWeek: DayOfWeek,
     private val startTime: LocalTime,
-    private val endTime: LocalTime
+    private val endTime: LocalTime,
 ) {
-
-
     fun isSatisfiedBy(screening: Screening): Boolean {
-        if (type == DiscountConditionType.PERIOD) {
-            return isSatisfiedByPeriod(screening)
-        }
-        return isSatisfiedBySequence(screening)
-    }
-
-    private fun isSatisfiedByPeriod(screening: Screening): Boolean {
         return dayOfWeek == screening.whenScreened.dayOfWeek &&
                 startTime <= screening.whenScreened.toLocalTime() &&
                 endTime.isAfter(screening.whenScreened.toLocalTime())
     }
+}
 
-    private fun isSatisfiedBySequence(screening: Screening): Boolean {
+class SequenceCondition(
+    private val sequence: Int
+) {
+    fun isSatisfiedBy(screening: Screening): Boolean {
         return sequence == screening.sequence
     }
 }
