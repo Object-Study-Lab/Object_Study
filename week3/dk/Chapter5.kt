@@ -26,19 +26,15 @@ class Screening(
     }
 }
 
-class Movie(
-    private val discountConditions: List<DiscountCondition>,
-    private val title: String,
-    private val runningTime: Duration,
-    private val fee: Money,
-
-    private val movieType: MovieType,
-    private val discountAmount: Money,
-    private val discountPercent: Double
+abstract class Movie(
+    val discountConditions: List<DiscountCondition>,
+    val title: String,
+    val runningTime: Duration,
+    val fee: Money,
 ) {
     fun calculateMovieFee(screening: Screening): Money {
         if (isDiscountable(screening)) {
-            return fee.minus(calculateDiscountAmount())
+            return fee.minus(calculatedDiscountAmount())
         }
         return fee
     }
@@ -47,23 +43,55 @@ class Movie(
         return discountConditions.any { condition -> condition.isSatisfiedBy(screening) }
     }
 
-    private fun calculateDiscountAmount(): Money {
-        return when (movieType) {
-            AMOUNT_DISCOUNT -> calculateAmountDiscountAmount()
-            PERCENT_DISCOUNT -> calculatePercentDiscountAmount()
-            NONE_DISCOUNT -> calculateNoneDiscountAmount()
-        }
-    }
+    protected abstract fun calculatedDiscountAmount(): Money
+}
 
-    private fun calculateAmountDiscountAmount(): Money {
+class AmountDiscountMovie(
+    discountConditions: List<DiscountCondition>,
+    title: String,
+    runningTime: Duration,
+    fee: Money,
+    private val discountAmount: Money
+) : Movie(
+    discountConditions = discountConditions,
+    title = title,
+    runningTime = runningTime,
+    fee = fee,
+) {
+    override fun calculatedDiscountAmount(): Money {
         return discountAmount
     }
+}
 
-    private fun calculatePercentDiscountAmount(): Money {
-        return fee.times(discountPercent)
+class PercentDiscountMovie(
+    discountConditions: List<DiscountCondition>,
+    title: String,
+    runningTime: Duration,
+    fee: Money,
+    private val percent: Double,
+) : Movie(
+    discountConditions = discountConditions,
+    title = title,
+    runningTime = runningTime,
+    fee = fee,
+) {
+    override fun calculatedDiscountAmount(): Money {
+        return fee.times(percent)
     }
+}
 
-    private fun calculateNoneDiscountAmount(): Money {
+class NoneDiscountMovie(
+    discountConditions: List<DiscountCondition>,
+    title: String,
+    runningTime: Duration,
+    fee: Money,
+) : Movie(
+    discountConditions = discountConditions,
+    title = title,
+    runningTime = runningTime,
+    fee = fee,
+) {
+    override fun calculatedDiscountAmount(): Money {
         return Money.ZERO
     }
 }
@@ -87,7 +115,7 @@ class PeriodCondition(
     private val dayOfWeek: DayOfWeek,
     private val startTime: LocalTime,
     private val endTime: LocalTime,
-): DiscountCondition {
+) : DiscountCondition {
     override fun isSatisfiedBy(screening: Screening): Boolean {
         return dayOfWeek == screening.whenScreened.dayOfWeek &&
                 startTime <= screening.whenScreened.toLocalTime() &&
@@ -97,7 +125,7 @@ class PeriodCondition(
 
 class SequenceCondition(
     private val sequence: Int
-): DiscountCondition {
+) : DiscountCondition {
     override fun isSatisfiedBy(screening: Screening): Boolean {
         return sequence == screening.sequence
     }
